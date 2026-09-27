@@ -1,5 +1,6 @@
 package dev.gitlines.cli;
 
+import dev.gitlines.git.RepositoryInfoReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -20,8 +21,12 @@ public final class GitLinesCommand implements Callable<Integer> {
     private Path repository;
 
     @Override
-    public Integer call() {
-        System.out.println("Repository: " + repository.toAbsolutePath().normalize());
+    public Integer call() throws IOException {
+        var info = new RepositoryInfoReader().read(repository);
+        System.out.println("Repository: " + info.name());
+        System.out.println("Revision: " + (info.revision() == null ? "(no commits)" : info.revision()));
+        System.out.println("Branch: " + (info.branch() == null ? "(detached HEAD)" : info.branch()));
+        System.out.println("Shallow: " + info.shallow());
         return 0;
     }
 

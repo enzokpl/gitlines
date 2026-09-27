@@ -8,4 +8,4 @@ case "${1:---jvm}" in
 esac
 "${cli[@]}" --help >/dev/null
 "${cli[@]}" --version | grep -q '^gitlines '
-echo "CLI smoke tests passed."
+python3 scripts/e2e.py "${cli[@]}"
