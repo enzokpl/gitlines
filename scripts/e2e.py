@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise the real CLI against isolated Git repositories without network access."""
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -39,6 +40,15 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     output = run(repo)
     assert "Commits analyzed: 2" in output
     assert "Added: 3\nDeleted: 1\nNet: +2" in output
+    report = root / "reports" / "report.json"
+    run(repo, "--json", str(report))
+    data = json.loads(report.read_text())
+    assert data["schemaVersion"] == 1
+    assert data["summary"] == dict(commits=2, contributors=1, added=3, deleted=1, net=2)
+    assert data["authors"][0] == dict(name="Test", email="test@example.org", commits=2, added=3, deleted=1, net=2)
+    report.write_text("old contents")
+    run(repo, "--json", str(report))
+    assert json.loads(report.read_text()) == data
     subdir = repo / "subdir"
     subdir.mkdir()
     assert "Repository: repo" in run(subdir)

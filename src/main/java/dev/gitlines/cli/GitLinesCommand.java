@@ -2,6 +2,8 @@ package dev.gitlines.cli;
 
 import dev.gitlines.analysis.RepositoryAnalyzer;
 import dev.gitlines.output.TerminalRenderer;
+import dev.gitlines.output.AtomicOutput;
+import dev.gitlines.output.JsonRenderer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -9,6 +11,7 @@ import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 import picocli.CommandLine.Model.CommandSpec;
 
@@ -23,12 +26,18 @@ public final class GitLinesCommand implements Callable<Integer> {
         description = "Repository root or a directory inside it (default: current directory).")
     private Path repository;
 
+    @Option(names = "--json", paramLabel = "<file>", description = "Write a UTF-8 JSON report (replaces regular files).")
+    private Path json;
+
     @Spec
     private CommandSpec spec;
 
     @Override
     public Integer call() throws IOException {
         var result = new RepositoryAnalyzer().analyze(repository);
+        if (json != null) {
+            AtomicOutput.write(json, output -> new JsonRenderer().render(result, output));
+        }
         new TerminalRenderer().render(result, spec.commandLine().getOut());
         return 0;
     }
