@@ -1,6 +1,6 @@
 package dev.gitlines.cli;
 
-import dev.gitlines.git.RepositoryInfoReader;
+import dev.gitlines.analysis.RepositoryAnalyzer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -22,11 +22,17 @@ public final class GitLinesCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws IOException {
-        var info = new RepositoryInfoReader().read(repository);
+        var result = new RepositoryAnalyzer().analyze(repository);
+        var info = result.repository();
         System.out.println("Repository: " + info.name());
         System.out.println("Revision: " + (info.revision() == null ? "(no commits)" : info.revision()));
         System.out.println("Branch: " + (info.branch() == null ? "(detached HEAD)" : info.branch()));
         System.out.println("Shallow: " + info.shallow());
+        System.out.println("Commits analyzed: " + result.summary().commits());
+        for (var author : result.authors()) {
+            System.out.printf("%s <%s>: %d %d %d %d%n", author.name(), author.email(),
+                author.commits(), author.added(), author.deleted(), author.net());
+        }
         return 0;
     }
 

@@ -33,6 +33,10 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     (repo / "file").write_text("hello\n")
     git(repo, "add", "file")
     git(repo, "commit", "-qm", "first")
+    assert "Test <test@example.org>: 1 1 0 1" in run(repo)
+    (repo / "file").write_text("changed\nmore\n")
+    git(repo, "commit", "-qam", "change")
+    assert "Test <test@example.org>: 2 3 1 2" in run(repo)
     subdir = repo / "subdir"
     subdir.mkdir()
     assert "Repository: repo" in run(subdir)
