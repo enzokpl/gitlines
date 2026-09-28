@@ -1,6 +1,7 @@
 package dev.gitlines.cli;
 
 import dev.gitlines.analysis.RepositoryAnalyzer;
+import dev.gitlines.output.TerminalRenderer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -8,6 +9,8 @@ import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
+import picocli.CommandLine.Model.CommandSpec;
 
 /**
  * Exposes local repository analysis as a single command.
@@ -20,19 +23,13 @@ public final class GitLinesCommand implements Callable<Integer> {
         description = "Repository root or a directory inside it (default: current directory).")
     private Path repository;
 
+    @Spec
+    private CommandSpec spec;
+
     @Override
     public Integer call() throws IOException {
         var result = new RepositoryAnalyzer().analyze(repository);
-        var info = result.repository();
-        System.out.println("Repository: " + info.name());
-        System.out.println("Revision: " + (info.revision() == null ? "(no commits)" : info.revision()));
-        System.out.println("Branch: " + (info.branch() == null ? "(detached HEAD)" : info.branch()));
-        System.out.println("Shallow: " + info.shallow());
-        System.out.println("Commits analyzed: " + result.summary().commits());
-        for (var author : result.authors()) {
-            System.out.printf("%s <%s>: %d %d %d %d%n", author.name(), author.email(),
-                author.commits(), author.added(), author.deleted(), author.net());
-        }
+        new TerminalRenderer().render(result, spec.commandLine().getOut());
         return 0;
     }
 
