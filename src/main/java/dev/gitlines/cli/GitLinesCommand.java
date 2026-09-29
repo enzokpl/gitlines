@@ -1,22 +1,22 @@
 package dev.gitlines.cli;
 
 import dev.gitlines.analysis.RepositoryAnalyzer;
-import dev.gitlines.output.TerminalRenderer;
 import dev.gitlines.output.AtomicOutput;
-import dev.gitlines.output.JsonRenderer;
 import dev.gitlines.output.HtmlRenderer;
+import dev.gitlines.output.JsonRenderer;
+import dev.gitlines.output.TerminalRenderer;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Files;
-import picocli.CommandLine.ParameterException;
+import java.nio.file.Path;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.IVersionProvider;
-import picocli.CommandLine.Parameters;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Spec;
 import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 /**
  * Exposes local repository analysis as a single command.
@@ -25,14 +25,16 @@ import picocli.CommandLine.Model.CommandSpec;
     description = "Analyze historical line contributions by Git author.",
     versionProvider = GitLinesCommand.Version.class)
 public final class GitLinesCommand implements Callable<Integer> {
-    @Parameters(index = "0", arity = "0..1", defaultValue = ".", paramLabel = "[repository]",
+    @Parameters(index = "0", arity = "0..1", defaultValue = ".", paramLabel = "repository",
         description = "Repository root or a directory inside it (default: current directory).")
     private Path repository;
 
-    @Option(names = "--json", paramLabel = "<file>", description = "Write a UTF-8 JSON report (replaces regular files).")
+    @Option(names = "--json", paramLabel = "<file>",
+        description = "Write a UTF-8 JSON report (replaces regular files).")
     private Path json;
 
-    @Option(names = "--html", paramLabel = "<file>", description = "Write a standalone HTML report (replaces regular files).")
+    @Option(names = "--html", paramLabel = "<file>",
+        description = "Write a standalone HTML report (replaces regular files).")
     private Path html;
 
     @Spec
@@ -40,10 +42,7 @@ public final class GitLinesCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws IOException {
-        if (json != null && html != null && (json.toAbsolutePath().normalize().equals(html.toAbsolutePath().normalize())
-            || (Files.exists(json) && Files.exists(html) && Files.isSameFile(json, html)))) {
-            throw new ParameterException(spec.commandLine(), "JSON and HTML destinations must be different");
-        }
+        validateDestinations();
         var result = new RepositoryAnalyzer().analyze(repository);
         if (json != null) {
             AtomicOutput.write(json, output -> new JsonRenderer().render(result, output));
@@ -53,6 +52,23 @@ public final class GitLinesCommand implements Callable<Integer> {
         }
         new TerminalRenderer().render(result, spec.commandLine().getOut());
         return 0;
+    }
+
+    /**
+     * Rejects destinations that resolve to the same file before writing either report.
+     * @throws IOException if file identity cannot be checked
+     */
+    private void validateDestinations() throws IOException {
+        if (json == null || html == null) {
+            return;
+        }
+        var jsonPath = json.toAbsolutePath().normalize();
+        var htmlPath = html.toAbsolutePath().normalize();
+        boolean samePath = jsonPath.equals(htmlPath);
+        boolean sameFile = Files.exists(json) && Files.exists(html) && Files.isSameFile(json, html);
+        if (samePath || sameFile) {
+            throw new ParameterException(spec.commandLine(), "JSON and HTML destinations must be different");
+        }
     }
 
     /**

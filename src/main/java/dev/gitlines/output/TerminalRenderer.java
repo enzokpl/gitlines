@@ -21,8 +21,19 @@ public final class TerminalRenderer {
         output.println("Revision: " + (repository.revision() == null ? "(no commits)" : repository.revision()));
         output.println("Branch: " + (repository.branch() == null ? "(detached HEAD)" : safe(repository.branch())));
         output.println("Shallow: " + repository.shallow());
-        output.printf(Locale.ROOT, "Commits analyzed: %,d%nContributors: %,d%n", totals.commits(), result.authors().size());
-        output.printf(Locale.ROOT, "Added: %,d%nDeleted: %,d%nNet: %+,d%n%n", totals.added(), totals.deleted(), totals.net());
+        output.printf(
+            Locale.ROOT,
+            "Commits analyzed: %,d%nContributors: %,d%n",
+            totals.commits(),
+            result.authors().size()
+        );
+        output.printf(
+            Locale.ROOT,
+            "Added: %,d%nDeleted: %,d%nNet: %+,d%n%n",
+            totals.added(),
+            totals.deleted(),
+            totals.net()
+        );
         if (result.authors().isEmpty()) {
             output.println("No contributions found.");
             output.flush();
@@ -33,8 +44,8 @@ public final class TerminalRenderer {
             var label = identity(author.name(), author.email());
             width = Math.max(width, Math.min(60, label.codePointCount(0, label.length())));
         }
-        int numberWidth = Math.max(8, String.format(Locale.ROOT, "%+,d",
-            Math.max(totals.commits(), Math.max(totals.added(), totals.deleted()))).length());
+        long largestCounter = Math.max(totals.commits(), Math.max(totals.added(), totals.deleted()));
+        int numberWidth = Math.max(8, String.format(Locale.ROOT, "%+,d", largestCounter).length());
         String column = "  %" + numberWidth + "s";
         String format = "%s" + column.repeat(4) + "%n";
         output.printf(format, padded("Author <email>", width), "Commits", "Added", "Deleted", "Net");
@@ -69,9 +80,12 @@ public final class TerminalRenderer {
      */
     private String safe(String value) {
         var text = new StringBuilder();
-        value.codePoints().forEach(code -> text.appendCodePoint(
-            Character.isISOControl(code) || code == 0x2028 || code == 0x2029 ? ' ' : code
-        ));
+        var points = value.codePoints().iterator();
+        while (points.hasNext()) {
+            int code = points.nextInt();
+            boolean control = Character.isISOControl(code) || code == 0x2028 || code == 0x2029;
+            text.appendCodePoint(control ? ' ' : code);
+        }
         return text.toString();
     }
 

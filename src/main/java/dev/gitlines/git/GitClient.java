@@ -20,10 +20,27 @@ public final class GitClient {
         if (repository.revision() == null) {
             return;
         }
-        var arguments = List.of("-c", "log.showSignature=false", "-c", "diff.algorithm=myers",
-            "log", "--no-merges", "--root", "--no-ext-diff", "--no-textconv", "--no-color",
-            "--no-notes", "--encoding=UTF-8", "--use-mailmap", "--find-renames=50%",
-            "--numstat", "-z", "--format=%x00GL%x00%aN%x00%aE%x00", repository.revision(), "--");
+        var arguments = List.of(
+            "-c",
+            "log.showSignature=false",
+            "-c",
+            "diff.algorithm=myers",
+            "log",
+            "--no-merges",
+            "--root",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--no-color",
+            "--no-notes",
+            "--encoding=UTF-8",
+            "--use-mailmap",
+            "--find-renames=50%",
+            "--numstat",
+            "-z",
+            "--format=%x00GL%x00%aN%x00%aE%x00",
+            repository.revision(),
+            "--"
+        );
         try (var git = new GitProcess(repository.path(), arguments, true);
             var input = git.process().getInputStream()) {
             new GitLogParser().parse(input, consumer);

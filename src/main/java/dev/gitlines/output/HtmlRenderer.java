@@ -24,20 +24,24 @@ public final class HtmlRenderer {
         dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .6rem 1rem; }
         dt { font-weight: 600; } dd { margin: 0; overflow-wrap: anywhere; }
         .summary { display: flex; flex-wrap: wrap; gap: 1rem; margin: 2rem 0; }
-        .metric { flex: 1 1 170px; background: white; padding: 1.2rem; border: 1px solid #d0dae0; border-radius: .6rem; }
+        .metric { flex: 1 1 170px; background: white; padding: 1.2rem;
+          border: 1px solid #d0dae0; border-radius: .6rem; }
         .metric h2 { font-size: .85rem; color: #455b6b; margin: 0 0 .6rem; }
         .metric p { font-size: 1.6rem; font-weight: 700; margin: 0; }
         .table-wrap { overflow-x: auto; background: white; border: 1px solid #d0dae0; border-radius: .6rem; }
         table { border-collapse: collapse; width: 100%; font-size: .95rem; }
         caption { text-align: left; font-weight: 600; padding: 1rem; }
-        th, td { padding: .9rem 1rem; border-top: 1px solid #d0dae0; text-align: right; font-variant-numeric: tabular-nums; }
+        th, td { padding: .9rem 1rem; border-top: 1px solid #d0dae0;
+          text-align: right; font-variant-numeric: tabular-nums; }
         thead th { background: #e7eef2; white-space: nowrap; }
         th:first-child, td:nth-child(2), thead th:nth-child(2) { text-align: left; overflow-wrap: anywhere; }
         tbody th { text-align: left; font-weight: 600; min-width: 12rem; max-width: 24rem; }
         tbody tr:nth-child(even) { background: #f8fafb; }
         .empty { padding: 2rem; background: white; border: 1px solid #d0dae0; border-radius: .6rem; }
         footer { margin-top: 2rem; font-size: .85rem; color: #455b6b; line-height: 1.6; }
-        @media (max-width: 600px) { body { padding: 1rem .75rem; } dl { grid-template-columns: 1fr; } dd { margin-bottom: .5rem; } }
+        @media (max-width: 600px) {
+          body { padding: 1rem .75rem; } dl { grid-template-columns: 1fr; } dd { margin-bottom: .5rem; }
+        }
         """;
 
     /**
@@ -60,7 +64,10 @@ public final class HtmlRenderer {
             html.writeAttribute("content", "width=device-width, initial-scale=1");
             html.writeEmptyElement("meta");
             html.writeAttribute("http-equiv", "Content-Security-Policy");
-            html.writeAttribute("content", "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'");
+            html.writeAttribute(
+                "content",
+                "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
+            );
             element(html, "title", "gitlines — " + result.repository().name());
             element(html, "style", STYLE);
             html.writeEndElement();

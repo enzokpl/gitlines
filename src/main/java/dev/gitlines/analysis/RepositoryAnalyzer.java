@@ -43,8 +43,13 @@ public final class RepositoryAnalyzer {
             added = Math.addExact(added, counts[1]);
             deleted = Math.addExact(deleted, counts[2]);
         }
-        authors.sort(Comparator.comparingLong((AuthorStats author) -> Math.addExact(author.added(), author.deleted()))
-            .reversed().thenComparing(AuthorStats::name).thenComparing(AuthorStats::email));
+        var activityOrder = Comparator.comparingLong(
+            (AuthorStats author) -> Math.addExact(author.added(), author.deleted())
+        )
+            .reversed()
+            .thenComparing(AuthorStats::name)
+            .thenComparing(AuthorStats::email);
+        authors.sort(activityOrder);
         return new AnalysisResult(repository, new Totals(commits, added, deleted), authors);
     }
 

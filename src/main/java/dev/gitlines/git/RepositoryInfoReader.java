@@ -43,8 +43,13 @@ public final class RepositoryInfoReader {
         }
         var shallow = query(path, List.of("rev-parse", "--is-shallow-repository"), true);
         var filename = path.getFileName();
-        return new RepositoryInfo(filename == null ? path.toString() : filename.toString(), path,
-            revision, branch, Boolean.parseBoolean(shallow));
+        return new RepositoryInfo(
+            filename == null ? path.toString() : filename.toString(),
+            path,
+            revision,
+            branch,
+            Boolean.parseBoolean(shallow)
+        );
     }
 
     /**
