@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise the real CLI against isolated Git repositories without network access."""
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -49,10 +50,39 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     report.write_text("old contents")
     run(repo, "--json", str(report))
     assert json.loads(report.read_text()) == data
+    html_report = root / "report.html"
+    run(repo, "--json", str(report), "--html", str(html_report))
+    html = html_report.read_text()
+    assert "<!DOCTYPE html>" in html and "test@example.org" in html
+    assert "<script" not in html and "http://" not in html and "https://" not in html
+    HTMLParser().feed(html)
     subdir = repo / "subdir"
     subdir.mkdir()
     assert "Repository: repo" in run(subdir)
     git(repo, "checkout", "--detach", "-q")
     assert "(detached HEAD)" in run(repo)
     run(root, success=False)
+    # Raw Git objects preserve angle brackets that git commit sanitizes in names.
+    payload = 'Untrusted & "quoted" </script><script>alert(1)</script>'
+    parent = git(repo, "rev-parse", "HEAD")
+    tree = git(repo, "write-tree")
+    identity = f'{payload} <evil@example.org> 1700000000 +0000'
+    raw = f'tree {tree}\nparent {parent}\nauthor {identity}\ncommitter Test <test@example.org> 1700000000 +0000\n\nunsafe author\n'
+    commit = subprocess.run(["git", "-C", str(repo), "hash-object", "-t", "commit", "-w", "--stdin"],
+                            input=raw, text=True, env=ENV, check=True, capture_output=True).stdout.strip()
+    git(repo, "update-ref", "HEAD", commit)
+    run(repo, "--json", str(report), "--html", str(html_report))
+    data = json.loads(report.read_text())
+    canonical = git(repo, "log", "-1", "--format=%aN")
+    assert any(a["name"] == canonical for a in data["authors"]), data
+    assert '&quot;' not in canonical
+    branch_payload = "bad</script><script>alert(1)</script>"
+    git(repo, "checkout", "-qb", branch_payload)
+    run(repo, "--json", str(report), "--html", str(html_report))
+    assert json.loads(report.read_text())["repository"]["branch"] == branch_payload
+    html = html_report.read_text()
+    assert payload not in html and branch_payload not in html and "&lt;/script&gt;" in html
+    assert "Untrusted &amp;" in html
+    assert "<script" not in html
+    HTMLParser().feed(html)
 print("Repository metadata e2e passed.")

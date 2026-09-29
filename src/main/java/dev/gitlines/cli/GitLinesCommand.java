@@ -4,8 +4,11 @@ import dev.gitlines.analysis.RepositoryAnalyzer;
 import dev.gitlines.output.TerminalRenderer;
 import dev.gitlines.output.AtomicOutput;
 import dev.gitlines.output.JsonRenderer;
+import dev.gitlines.output.HtmlRenderer;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Files;
+import picocli.CommandLine.ParameterException;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -29,14 +32,24 @@ public final class GitLinesCommand implements Callable<Integer> {
     @Option(names = "--json", paramLabel = "<file>", description = "Write a UTF-8 JSON report (replaces regular files).")
     private Path json;
 
+    @Option(names = "--html", paramLabel = "<file>", description = "Write a standalone HTML report (replaces regular files).")
+    private Path html;
+
     @Spec
     private CommandSpec spec;
 
     @Override
     public Integer call() throws IOException {
+        if (json != null && html != null && (json.toAbsolutePath().normalize().equals(html.toAbsolutePath().normalize())
+            || (Files.exists(json) && Files.exists(html) && Files.isSameFile(json, html)))) {
+            throw new ParameterException(spec.commandLine(), "JSON and HTML destinations must be different");
+        }
         var result = new RepositoryAnalyzer().analyze(repository);
         if (json != null) {
             AtomicOutput.write(json, output -> new JsonRenderer().render(result, output));
+        }
+        if (html != null) {
+            AtomicOutput.write(html, output -> new HtmlRenderer().render(result, output));
         }
         new TerminalRenderer().render(result, spec.commandLine().getOut());
         return 0;
