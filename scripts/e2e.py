@@ -127,6 +127,11 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     assert data["repository"]["revision"] == git(repo, "rev-parse", "HEAD")
     assert data["repository"]["branch"] == "main" and not data["repository"]["shallow"]
     assert Path(data["repository"]["path"]) == repo.resolve()
+    # Packing objects must not change analysis or the report protocol.
+    git(repo, "gc", "--quiet")
+    assert list((repo / ".git" / "objects" / "pack").glob("*.pack"))
+    packed, packed_output, _ = report(repo, root / "packed-reports")
+    assert packed == data and packed_output == output
     # Defaults, subdirectories, dirty working tree and deterministic reports.
     baseline = (root / "simple-reports" / "report.json").read_bytes()
     (repo / "subdir").mkdir()

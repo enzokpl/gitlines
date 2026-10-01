@@ -8,6 +8,8 @@ import java.util.function.Consumer;
 
 /**
  * Runs Git's native diff engine and mailmap resolution for the pinned revision.
+ * Pack mappings and the delta-base cache are bounded for this subprocess only;
+ * large decoded objects and Git's diff working memory remain outside these limits.
  */
 public final class GitClient {
     /**
@@ -25,6 +27,12 @@ public final class GitClient {
             "log.showSignature=false",
             "-c",
             "diff.algorithm=myers",
+            "-c",
+            "core.packedGitWindowSize=8m",
+            "-c",
+            "core.packedGitLimit=32m",
+            "-c",
+            "core.deltaBaseCacheLimit=32m",
             "log",
             "--no-merges",
             "--root",
