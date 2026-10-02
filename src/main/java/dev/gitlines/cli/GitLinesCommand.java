@@ -37,8 +37,8 @@ public final class GitLinesCommand implements Callable<Integer> {
         description = "Write a standalone HTML report (replaces regular files).")
     private Path html;
 
-    @Option(names = "--workers", defaultValue = "1", paramLabel = "<1..4>",
-        description = "Experimental persistent Git diff workers (default: 1, serial log).")
+    @Option(names = "--workers", defaultValue = "2", paramLabel = "<1..4>",
+        description = "Persistent Git diff workers (default: 2; 1 uses serial log).")
     private int workers;
 
     @Spec

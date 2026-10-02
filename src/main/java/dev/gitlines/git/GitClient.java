@@ -14,7 +14,8 @@ import java.util.function.Consumer;
  */
 public final class GitClient {
     /**
-     * Streams non-merge contributions, disabling external diff and text conversion.
+     * Streams non-merge contributions with two persistent workers by default,
+     * disabling external diff and text conversion.
      * Optional binary preparation avoids full large-object inflation for numstat;
      * only fully validated binary paths receive temporary subprocess attributes.
      * Inconclusive discovery preserves ordinary Git classification and counts.
@@ -23,7 +24,7 @@ public final class GitClient {
      * @throws IOException if parsing or Git execution fails
      */
     public void contributions(RepositoryInfo repository, Consumer<AuthorStats> consumer) throws IOException {
-        contributions(repository, 1, consumer);
+        contributions(repository, 2, consumer);
     }
 
     /**

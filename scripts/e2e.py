@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 
 CLI = sys.argv[1:]
 NATIVE = Path(CLI[0]).name != "java"
+WORKERS = int(CLI[CLI.index("--workers") + 1]) if "--workers" in CLI else 2
 ENV = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
            GIT_AUTHOR_DATE="2020-01-01T12:00:00+00:00", GIT_COMMITTER_DATE="2020-01-01T12:00:00+00:00")
 for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_AUTHOR_NAME",
@@ -338,7 +339,7 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     failed = invoke(weird, "--json", str(failed_report), env=fake_env, code=1)
     assert "status 37" in failed.stderr
     assert failed_report.read_text() == "preserve me"
-    if "--workers" in CLI and CLI[CLI.index("--workers") + 1] != "1":
+    if WORKERS != 1:
         fake_git.write_text('#!/bin/sh\nfor arg do\n  if [ "$arg" = diff-tree ]; then exit 41; fi\ndone\n'
                             f'exec "{real_git}" "$@"\n')
         worker_failed = invoke(weird, "--json", str(failed_report), env=fake_env, code=1)

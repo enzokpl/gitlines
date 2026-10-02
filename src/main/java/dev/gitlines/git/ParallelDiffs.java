@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * Experiments with parallel native diffs using a fixed number of persistent Git
+ * Streams parallel native diffs using a fixed number of persistent Git
  * processes. Commit IDs are dispatched round-robin through bounded pipe buffers;
  * history is never collected. Each worker owns its pack and delta caches, so total
  * Git memory can grow with the worker count. Output readers run concurrently to

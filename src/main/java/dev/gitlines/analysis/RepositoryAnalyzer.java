@@ -16,17 +16,18 @@ import java.util.HashMap;
  */
 public final class RepositoryAnalyzer {
     /**
-     * Analyzes the pinned HEAD, ordering by activity then exact canonical identity.
+     * Analyzes the pinned HEAD with two diff workers, ordering by activity then
+     * exact canonical identity.
      * @param directory repository root or subdirectory
      * @return a complete immutable result, never a partial failed analysis
      * @throws IOException if repository inspection or history traversal fails
      */
     public AnalysisResult analyze(Path directory) throws IOException {
-        return analyze(directory, 1);
+        return analyze(directory, 2);
     }
 
     /**
-     * Runs the experimental bounded worker mode without changing aggregation or
+     * Runs the bounded worker mode without changing aggregation or
      * ordering. GitClient serializes callbacks even when diffs finish concurrently.
      * @param directory repository root or subdirectory
      * @param workers number of Git workers, from one to four

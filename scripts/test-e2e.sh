@@ -6,8 +6,7 @@ case "${1:---jvm}" in
     --native) cli=("$PWD/dist/gitlines") ;;
     *) echo "Usage: $0 [--jvm|--native] [workers]" >&2; exit 2 ;;
 esac
-workers="${2:-1}"
-cli+=(--workers "$workers")
+if [[ $# -ge 2 ]]; then cli+=(--workers "$2"); fi
 "${cli[@]}" --help >/dev/null
 "${cli[@]}" --version | grep -q '^gitlines '
 python3 scripts/e2e.py "${cli[@]}"
