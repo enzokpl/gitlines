@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 
 CLI = sys.argv[1:]
@@ -246,6 +247,78 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     assert author("No Email", "", 1, 0, 0) in malicious_data["authors"]
     assert branch_payload not in malicious_html and "&lt;/script&gt;" in malicious_html
     assert "Untrusted &amp;" in malicious_html and "<script" not in malicious_html
+    # Large binaries use bounded preflight; older text versions must retain lines.
+    large = init(root, "large-binary")
+    payload = large / "payload"
+    payload.write_bytes(b"\0" + b"x" * (32 * 1024 * 1024))
+    (large / "text").write_text("one\ntwo\n")
+    commit(large)
+    git(large, "gc", "--quiet")
+    large_data, _, _ = report(large, root / "large-reports")
+    assert large_data["summary"] == dict(commits=1, contributors=1, added=2, deleted=0, net=2)
+    probe_tools = root / "probe-tools"
+    probe_tools.mkdir()
+    real_probe_git = shutil.which("git")
+    probe_git = probe_tools / "git"
+    marker = root / "preflight-marker"
+    probe_git.write_text('#!/bin/sh\nfor arg do\n case "$arg" in core.attributesFile=*) '
+                         f'cat "${{arg#core.attributesFile=}}" > "{marker}";; esac\ndone\n'
+                         f'exec "{real_probe_git}" "$@"\n')
+    probe_git.chmod(0o755)
+    probe_env = dict(ENV, PATH=str(probe_tools) + os.pathsep + ENV["PATH"])
+    invoke(large, env=probe_env)
+    assert marker.read_text() == "/payload -diff\n"
+    marker.unlink()
+    # An optional helper failure must fall back without losing counts.
+    probe_git.write_text('#!/bin/sh\nfor arg do\n if [ "$arg" = cat-file ]; then exit 38; fi\ndone\n'
+                         f'exec "{real_probe_git}" "$@"\n')
+    assert "Commits analyzed: 1" in invoke(large, env=probe_env).stdout
+    # A hung optional Git helper is terminated rather than blocking analysis.
+    probe_git.write_text('#!/bin/sh\nfor arg do\n if [ "$arg" = cat-file ]; then exec /bin/sleep 3; fi\ndone\n'
+                         f'exec "{real_probe_git}" "$@"\n')
+    timeout_started = time.monotonic()
+    assert "Commits analyzed: 1" in invoke(large, env=probe_env).stdout
+    assert time.monotonic() - timeout_started < 3, "helper completed its sleep instead of timing out"
+    global_attributes = root / "global.attributes"
+    global_attributes.write_text("text -diff\n")
+    git(large, "config", "core.attributesFile", str(global_attributes))
+    global_data, _, _ = report(large, root / "global-reports")
+    assert global_data["summary"]["added"] == 0
+    git(large, "config", "--unset", "core.attributesFile")
+    payload.write_text("historical text\n")
+    commit(large)
+    payload.write_bytes(b"\0" + b"x" * (32 * 1024 * 1024))
+    commit(large)
+    mixed_data, _, _ = report(large, root / "mixed-reports")
+    # Binary/text transitions are binary diffs in native Git, counting zero lines.
+    assert mixed_data["summary"] == dict(commits=3, contributors=1, added=2, deleted=0, net=2)
+    # Large text still counts; a literal wildcard filename must not become a rule.
+    large_text = init(root, "large-text")
+    (large_text / "data*").write_bytes(b"\0" + b"x" * (32 * 1024 * 1024))
+    (large_text / "data-text").write_text("x" * (32 * 1024 * 1024) + "\n")
+    commit(large_text)
+    text_data, _, _ = report(large_text, root / "large-text-reports")
+    assert text_data["summary"] == dict(commits=1, contributors=1, added=1, deleted=0, net=1)
+    older = init(root, "older-text")
+    (older / "payload").write_text("count this historical line\n")
+    commit(older)
+    (older / "payload").write_bytes(b"\0" + b"x" * (32 * 1024 * 1024))
+    commit(older)
+    older_data, _, _ = report(older, root / "older-reports")
+    assert older_data["summary"] == dict(commits=2, contributors=1, added=1, deleted=0, net=1)
+    (large / "info").write_text("extra\n")
+    commit(large)
+    (large / ".git" / "info" / "attributes").write_text("payload diff\n")
+    native_stats = git(large, "log", "--no-merges", "--root", "--numstat", "--format=")
+    added = deleted = 0
+    for line in native_stats.splitlines():
+        parts = line.split("\t")
+        if len(parts) == 3 and parts[0] != "-":
+            added += int(parts[0])
+            deleted += int(parts[1])
+    forced_data, _, _ = report(large, root / "forced-reports")
+    assert forced_data["summary"]["added"] == added
+    assert forced_data["summary"]["deleted"] == deleted
     # A native binary needs only Git on PATH, and Git failures publish no report.
     real_git = shutil.which("git")
     tools = root / "tools"

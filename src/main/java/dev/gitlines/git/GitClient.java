@@ -3,6 +3,7 @@ package dev.gitlines.git;
 import dev.gitlines.model.AuthorStats;
 import dev.gitlines.model.RepositoryInfo;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -14,6 +15,9 @@ import java.util.function.Consumer;
 public final class GitClient {
     /**
      * Streams non-merge contributions, disabling external diff and text conversion.
+     * Optional binary preparation avoids full large-object inflation for numstat;
+     * only fully validated binary paths receive temporary subprocess attributes.
+     * Inconclusive discovery preserves ordinary Git classification and counts.
      * @param repository metadata with the immutable revision to traverse
      * @param consumer recipient of per-commit counters
      * @throws IOException if parsing or Git execution fails
@@ -22,39 +26,42 @@ public final class GitClient {
         if (repository.revision() == null) {
             return;
         }
-        var arguments = List.of(
-            "-c",
-            "log.showSignature=false",
-            "-c",
-            "diff.algorithm=myers",
-            "-c",
-            "core.packedGitWindowSize=8m",
-            "-c",
-            "core.packedGitLimit=32m",
-            "-c",
-            "core.deltaBaseCacheLimit=32m",
-            "log",
-            "--no-merges",
-            "--root",
-            "--no-ext-diff",
-            "--no-textconv",
-            "--no-color",
-            "--no-notes",
-            "--encoding=UTF-8",
-            "--use-mailmap",
-            "--find-renames=50%",
-            "--numstat",
-            "-z",
-            "--format=%x00GL%x00%aN%x00%aE%x00",
-            repository.revision(),
-            "--"
-        );
-        try (var git = new GitProcess(repository.path(), arguments, true);
-            var input = git.process().getInputStream()) {
-            new GitLogParser().parse(input, consumer);
-            int status = git.await();
-            if (status != 0) {
-                throw new IOException("failed to analyze repository: git exited with status " + status);
+        try (var preflight = new BinaryPreflight(repository)) {
+            var arguments = new ArrayList<>(preflight.configuration());
+            arguments.addAll(List.of(
+                "-c",
+                "log.showSignature=false",
+                "-c",
+                "diff.algorithm=myers",
+                "-c",
+                "core.packedGitWindowSize=8m",
+                "-c",
+                "core.packedGitLimit=32m",
+                "-c",
+                "core.deltaBaseCacheLimit=32m",
+                "log",
+                "--no-merges",
+                "--root",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--no-color",
+                "--no-notes",
+                "--encoding=UTF-8",
+                "--use-mailmap",
+                "--find-renames=50%",
+                "--numstat",
+                "-z",
+                "--format=%x00GL%x00%aN%x00%aE%x00",
+                repository.revision(),
+                "--"
+            ));
+            try (var git = new GitProcess(repository.path(), arguments, true);
+                var input = git.process().getInputStream()) {
+                new GitLogParser().parse(input, consumer);
+                int status = git.await();
+                if (status != 0) {
+                    throw new IOException("failed to analyze repository: git exited with status " + status);
+                }
             }
         }
     }

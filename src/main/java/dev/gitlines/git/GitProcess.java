@@ -12,6 +12,7 @@ import java.util.List;
 final class GitProcess implements AutoCloseable {
     private final Process process;
     private final Thread shutdownHook;
+    private Thread timeoutGuard;
 
     /**
      * Starts Git with deterministic output and no pager or optional index locks.
@@ -34,6 +35,23 @@ final class GitProcess implements AutoCloseable {
         process = builder.start();
         shutdownHook = new Thread(process::destroyForcibly, "gitlines-git-cleanup");
         Runtime.getRuntime().addShutdownHook(shutdownHook);
+    }
+
+    /**
+     * Bounds optional probes: packed deltas can otherwise inflate a whole large
+     * object before returning its prefix. Expiry kills Git and causes fallback.
+     * @param milliseconds maximum subprocess lifetime
+     */
+    void limitLifetime(long milliseconds) {
+        timeoutGuard = Thread.ofPlatform().daemon().start(() -> {
+            try {
+                if (!process.waitFor(milliseconds, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                    process.destroyForcibly();
+                }
+            } catch (InterruptedException closed) {
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     /**
@@ -60,6 +78,9 @@ final class GitProcess implements AutoCloseable {
 
     @Override
     public void close() {
+        if (timeoutGuard != null) {
+            timeoutGuard.interrupt();
+        }
         if (process.isAlive()) {
             process.destroyForcibly();
         }
