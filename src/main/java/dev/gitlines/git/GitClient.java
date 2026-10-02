@@ -23,11 +23,36 @@ public final class GitClient {
      * @throws IOException if parsing or Git execution fails
      */
     public void contributions(RepositoryInfo repository, Consumer<AuthorStats> consumer) throws IOException {
+        contributions(repository, 1, consumer);
+    }
+
+    /**
+     * Shares binary preparation across persistent workers. One worker retains the
+     * established serial log as the benchmark control; multiple workers partition
+     * non-merge commit IDs and keep the same native diff and author semantics.
+     * @param repository pinned metadata
+     * @param workers bounded worker count, from one to four
+     * @param consumer serialized recipient of complete commit counters
+     * @throws IOException if any traversal or diff fails
+     */
+    public void contributions(
+        RepositoryInfo repository,
+        int workers,
+        Consumer<AuthorStats> consumer
+    ) throws IOException {
+        if (workers < 1 || workers > 4) {
+            throw new IllegalArgumentException("workers must be between 1 and 4");
+        }
         if (repository.revision() == null) {
             return;
         }
         try (var preflight = new BinaryPreflight(repository)) {
-            var arguments = new ArrayList<>(preflight.configuration());
+            var configuration = preflight.configuration();
+            if (workers > 1) {
+                new ParallelDiffs().contributions(repository, configuration, workers, consumer);
+                return;
+            }
+            var arguments = new ArrayList<>(configuration);
             arguments.addAll(List.of(
                 "-c",
                 "log.showSignature=false",

@@ -4,8 +4,10 @@ cd "$(dirname "$0")/.."
 case "${1:---jvm}" in
     --jvm) cli=(java -jar "$PWD/target/gitlines.jar") ;;
     --native) cli=("$PWD/dist/gitlines") ;;
-    *) echo "Usage: $0 [--jvm|--native]" >&2; exit 2 ;;
+    *) echo "Usage: $0 [--jvm|--native] [workers]" >&2; exit 2 ;;
 esac
+workers="${2:-1}"
+cli+=(--workers "$workers")
 "${cli[@]}" --help >/dev/null
 "${cli[@]}" --version | grep -q '^gitlines '
 python3 scripts/e2e.py "${cli[@]}"

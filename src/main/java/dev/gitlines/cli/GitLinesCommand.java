@@ -37,13 +37,20 @@ public final class GitLinesCommand implements Callable<Integer> {
         description = "Write a standalone HTML report (replaces regular files).")
     private Path html;
 
+    @Option(names = "--workers", defaultValue = "1", paramLabel = "<1..4>",
+        description = "Experimental persistent Git diff workers (default: 1, serial log).")
+    private int workers;
+
     @Spec
     private CommandSpec spec;
 
     @Override
     public Integer call() throws IOException {
+        if (workers < 1 || workers > 4) {
+            throw new ParameterException(spec.commandLine(), "workers must be between 1 and 4");
+        }
         validateDestinations();
-        var result = new RepositoryAnalyzer().analyze(repository);
+        var result = new RepositoryAnalyzer().analyze(repository, workers);
         if (json != null) {
             AtomicOutput.write(json, output -> new JsonRenderer().render(result, output));
         }

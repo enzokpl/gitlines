@@ -12,6 +12,7 @@ import time
 import xml.etree.ElementTree as ET
 
 CLI = sys.argv[1:]
+NATIVE = Path(CLI[0]).name != "java"
 ENV = dict(os.environ, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull,
            GIT_AUTHOR_DATE="2020-01-01T12:00:00+00:00", GIT_COMMITTER_DATE="2020-01-01T12:00:00+00:00")
 for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR", "GIT_AUTHOR_NAME",
@@ -247,6 +248,8 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
     assert author("No Email", "", 1, 0, 0) in malicious_data["authors"]
     assert branch_payload not in malicious_html and "&lt;/script&gt;" in malicious_html
     assert "Untrusted &amp;" in malicious_html and "<script" not in malicious_html
+    invoke(None, "--workers", "0", code=2)
+    invoke(None, "--workers", "5", code=2)
     # Large binaries use bounded preflight; older text versions must retain lines.
     large = init(root, "large-binary")
     payload = large / "payload"
@@ -328,16 +331,22 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
                         f'exec "{real_git}" "$@"\n')
     fake_git.chmod(0o755)
     fake_env = dict(ENV, PATH=str(tools))
-    if len(CLI) > 1:
+    if not NATIVE:
         (tools / "java").symlink_to(shutil.which("java"))
     failed_report = root / "failed.json"
     failed_report.write_text("preserve me")
     failed = invoke(weird, "--json", str(failed_report), env=fake_env, code=1)
     assert "status 37" in failed.stderr
     assert failed_report.read_text() == "preserve me"
+    if "--workers" in CLI and CLI[CLI.index("--workers") + 1] != "1":
+        fake_git.write_text('#!/bin/sh\nfor arg do\n  if [ "$arg" = diff-tree ]; then exit 41; fi\ndone\n'
+                            f'exec "{real_git}" "$@"\n')
+        worker_failed = invoke(weird, "--json", str(failed_report), env=fake_env, code=1)
+        assert "status 41" in worker_failed.stderr
+        assert failed_report.read_text() == "preserve me"
     fake_git.unlink()
     fake_git.symlink_to(real_git)
-    if len(CLI) == 1:
+    if NATIVE:
         assert "Commits analyzed: 3" in invoke(weird, env=fake_env).stdout
     fake_git.unlink()
     invoke(weird, env=fake_env, code=1)

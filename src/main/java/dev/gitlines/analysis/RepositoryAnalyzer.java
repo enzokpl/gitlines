@@ -22,9 +22,21 @@ public final class RepositoryAnalyzer {
      * @throws IOException if repository inspection or history traversal fails
      */
     public AnalysisResult analyze(Path directory) throws IOException {
+        return analyze(directory, 1);
+    }
+
+    /**
+     * Runs the experimental bounded worker mode without changing aggregation or
+     * ordering. GitClient serializes callbacks even when diffs finish concurrently.
+     * @param directory repository root or subdirectory
+     * @param workers number of Git workers, from one to four
+     * @return complete immutable analysis
+     * @throws IOException if any subprocess or protocol fails
+     */
+    public AnalysisResult analyze(Path directory, int workers) throws IOException {
         var repository = new RepositoryInfoReader().read(directory);
         var counters = new HashMap<Identity, long[]>();
-        new GitClient().contributions(repository, commit -> {
+        new GitClient().contributions(repository, workers, commit -> {
             var key = new Identity(commit.name(), commit.email());
             var counts = counters.computeIfAbsent(key, ignored -> new long[3]);
             counts[0] = Math.addExact(counts[0], commit.commits());
