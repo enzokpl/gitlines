@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import xml.etree.ElementTree as ET
 
 CLI = sys.argv[1:]
@@ -108,7 +107,8 @@ def raw_commit(repo, name, email):
     identity = f"{name} <{email}> 1700000000 +0000"
     raw = (f"tree {tree}\nparent {parent}\nauthor {identity}\n"
            "committer Alice <alice@example.org> 1700000000 +0000\n\nraw identity\n")
-    revision = git(repo, "hash-object", "-t", "commit", "-w", "--stdin", input=raw)
+    # Deliberately malformed identities exercise escaping; newer Git validates them.
+    revision = git(repo, "hash-object", "--literally", "-t", "commit", "-w", "--stdin", input=raw)
     git(repo, "update-ref", "HEAD", revision)
 
 
@@ -278,11 +278,15 @@ with tempfile.TemporaryDirectory(prefix="gitlines-e2e-") as directory:
                          f'exec "{real_probe_git}" "$@"\n')
     assert "Commits analyzed: 1" in invoke(large, env=probe_env).stdout
     # A hung optional Git helper is terminated rather than blocking analysis.
-    probe_git.write_text('#!/bin/sh\nfor arg do\n if [ "$arg" = cat-file ]; then exec /bin/sleep 3; fi\ndone\n'
+    helper_completed = root / "helper-completed"
+    hung_helper = root / "hung-helper.py"
+    hung_helper.write_text("import time\nfrom pathlib import Path\ntime.sleep(3)\n"
+                           f"Path({str(helper_completed)!r}).touch()\n")
+    probe_git.write_text('#!/bin/sh\nfor arg do\n if [ "$arg" = cat-file ]; then '
+                         f'exec "{sys.executable}" "{hung_helper}"; fi\ndone\n'
                          f'exec "{real_probe_git}" "$@"\n')
-    timeout_started = time.monotonic()
     assert "Commits analyzed: 1" in invoke(large, env=probe_env).stdout
-    assert time.monotonic() - timeout_started < 3, "helper completed its sleep instead of timing out"
+    assert not helper_completed.exists(), "helper completed its sleep instead of being terminated"
     global_attributes = root / "global.attributes"
     global_attributes.write_text("text -diff\n")
     git(large, "config", "core.attributesFile", str(global_attributes))

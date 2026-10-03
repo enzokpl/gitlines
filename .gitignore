@@ -2,3 +2,5 @@
 /dist/
 .idea
 gitlines.iml
+__pycache__/
+*.pyc

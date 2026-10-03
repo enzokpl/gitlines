@@ -1,0 +1,8 @@
+.git
+.idea
+.agents
+.codex
+target
+dist
+**/__pycache__
+*.pyc

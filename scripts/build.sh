@@ -25,7 +25,7 @@ if ! "$skip_tests"; then
     for workers in 1 4; do ./scripts/test-e2e.sh --jvm "$workers"; done
 fi
 mkdir -p dist
-native-image -jar target/gitlines.jar -o dist/gitlines
+native-image --no-fallback -march=compatibility -jar target/gitlines.jar -o dist/gitlines
 if ! "$skip_tests"; then
     ./scripts/test-e2e.sh --native
     for workers in 1 4; do ./scripts/test-e2e.sh --native "$workers"; done

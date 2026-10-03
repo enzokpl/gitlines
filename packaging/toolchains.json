@@ -1,0 +1,9 @@
+{
+  "macos_native_image_version": "25.0.4",
+  "macos_runtime_version": "25.2.4+7.1",
+  "maven_version": "3.9.11",
+  "linux_images": {
+    "arm64": "ghcr.io/graalvm/native-image-community:25.0.2-ol8-20260120@sha256:1a162440cd58256fc3b99848d5b5cba1562d470c7eb0224d6b79d2087860cf64",
+    "x86_64": "ghcr.io/graalvm/native-image-community:25.0.2-ol8-20260120@sha256:1ec208a168056b209bafdd3babe8017e9a8e102bc3a81bc7f6f8724de5face6e"
+  }
+}
