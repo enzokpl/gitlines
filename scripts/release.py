@@ -74,7 +74,7 @@ def package(binary_dir, destination, target, version, metadata, epoch):
         "Requires Git in PATH; Java and Docker are not required.\n"
         "Install: mkdir -p ~/.local/bin && cp gitlines ~/.local/bin/gitlines\n"
         "Add ~/.local/bin to PATH, then run: gitlines --version\n"
-        "See the project README for supported platforms and macOS signing status.\n")
+        "See BUILDING.md in the project repository for supported platforms and macOS signing status.\n")
     (staging / "build-info.json").write_text(json.dumps(metadata, indent=2) + "\n")
     for file in ("toolchain.txt", "libraries.txt"):
         if (binary_dir / file).exists():
